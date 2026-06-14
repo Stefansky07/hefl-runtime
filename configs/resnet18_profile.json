@@ -1,0 +1,27 @@
+{
+  "run_name": "resnet18_profile",
+  "seed": 2029,
+  "dataset": {
+    "name": "fake_cifar",
+    "num_samples": 128,
+    "num_classes": 10,
+    "batch_size": 16
+  },
+  "model": {
+    "name": "resnet18"
+  },
+  "fed": {
+    "num_clients": 4,
+    "rounds": 1,
+    "local_epochs": 0,
+    "partition": "iid",
+    "clients_per_round": 4,
+    "lr": 0.01
+  },
+  "layout": {
+    "template_policy": "bucketed_fixed"
+  },
+  "profile_only": true,
+  "baselines": ["simhe_layer_order", "simhe_manual_packed", "simhe_fixed_template_runtime"]
+}
+

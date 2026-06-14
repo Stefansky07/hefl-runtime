@@ -1,0 +1,27 @@
+{
+  "run_name": "leakage",
+  "seed": 2028,
+  "dataset": {
+    "name": "fake_cifar",
+    "num_samples": 768,
+    "num_classes": 10,
+    "batch_size": 64
+  },
+  "model": {
+    "name": "tiny_cnn"
+  },
+  "fed": {
+    "num_clients": 6,
+    "rounds": 2,
+    "local_epochs": 1,
+    "partition": "dirichlet",
+    "dirichlet_alpha": 0.1,
+    "clients_per_round": 6,
+    "lr": 0.05
+  },
+  "layout": {
+    "template_policy": "bucketed_fixed"
+  },
+  "run_dynamic_template_ablation": true
+}
+

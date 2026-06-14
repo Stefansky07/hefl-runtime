@@ -1,0 +1,25 @@
+{
+  "run_name": "smoke",
+  "seed": 2026,
+  "dataset": {
+    "name": "fake_cifar",
+    "num_samples": 512,
+    "num_classes": 10,
+    "batch_size": 64
+  },
+  "model": {
+    "name": "tiny_cnn"
+  },
+  "fed": {
+    "num_clients": 4,
+    "rounds": 2,
+    "local_epochs": 1,
+    "partition": "iid",
+    "clients_per_round": 4,
+    "lr": 0.05
+  },
+  "layout": {
+    "template_policy": "bucketed_fixed"
+  }
+}
+

@@ -1,0 +1,7 @@
+# Use an AutoDL PyTorch image first, or install torch/torchvision separately
+# with the command recommended for your CUDA version at https://pytorch.org.
+numpy
+pandas
+matplotlib
+psutil
+tenseal

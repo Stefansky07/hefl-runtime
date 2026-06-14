@@ -1,0 +1,29 @@
+{
+  "run_name": "cifar10_tinycnn_iid",
+  "seed": 2026,
+  "dataset": {
+    "name": "cifar10",
+    "root": "/root/autodl-tmp/data",
+    "download": true,
+    "allow_fake_fallback": false,
+    "batch_size": 128
+  },
+  "model": {
+    "name": "tiny_cnn"
+  },
+  "fed": {
+    "num_clients": 10,
+    "rounds": 20,
+    "local_epochs": 1,
+    "partition": "iid",
+    "clients_per_round": 5,
+    "lr": 0.05,
+    "min_samples_per_client": 1
+  },
+  "layout": {
+    "template_policy": "bucketed_fixed"
+  },
+  "experiment": {
+    "seeds": [2026, 2027, 2028]
+  }
+}

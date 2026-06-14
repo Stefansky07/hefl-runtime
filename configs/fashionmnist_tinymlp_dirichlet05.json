@@ -1,0 +1,30 @@
+{
+  "run_name": "fashionmnist_tinymlp_dirichlet05",
+  "seed": 2026,
+  "dataset": {
+    "name": "fashionmnist",
+    "root": "/root/autodl-tmp/data",
+    "download": true,
+    "allow_fake_fallback": false,
+    "batch_size": 128
+  },
+  "model": {
+    "name": "tiny_mlp"
+  },
+  "fed": {
+    "num_clients": 10,
+    "rounds": 20,
+    "local_epochs": 1,
+    "partition": "dirichlet",
+    "dirichlet_alpha": 0.5,
+    "clients_per_round": 5,
+    "lr": 0.05,
+    "min_samples_per_client": 1
+  },
+  "layout": {
+    "template_policy": "bucketed_fixed"
+  },
+  "experiment": {
+    "seeds": [2026, 2027, 2028]
+  }
+}
