@@ -105,7 +105,14 @@ def aggregate_suite(suite_dir: str | Path) -> Dict[str, Any]:
             final_rows.append(item)
 
     write_rows_csv(suite_dir / "final_summary.csv", final_rows)
-    lines = ["# Final HE-FL Suite Summary", ""]
+    lines = [
+        "# HE-FL Suite Summary",
+        "",
+        f"- Suite: `{manifest.get('suite')}`",
+        f"- Purpose: {manifest.get('purpose', '')}",
+        f"- Resource preset: {manifest.get('resource_preset', {}).get('recommended', '')}",
+        "",
+    ]
     if final_rows:
         cols = [
             "workload",

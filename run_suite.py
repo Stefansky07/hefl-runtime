@@ -17,7 +17,7 @@ from hefl.utils import ensure_dir, write_json
 from run_experiment import run
 
 
-FINAL_AUTODL_CONFIGS = [
+PAPER_AUTODL_CONFIGS = [
     "cifar10_tinycnn_iid",
     "cifar10_tinycnn_dirichlet05",
     "cifar10_tinycnn_dirichlet01",
@@ -25,12 +25,64 @@ FINAL_AUTODL_CONFIGS = [
     "resnet18_cifar10_profile",
 ]
 
+DEV_AUTODL_CONFIGS = [
+    "cifar10_tinycnn_iid",
+    "cifar10_tinycnn_dirichlet05",
+    "fashionmnist_tinymlp_dirichlet05",
+    "resnet18_cifar10_profile",
+]
+
+SUITES = {
+    "dev_autodl": {
+        "configs": DEV_AUTODL_CONFIGS,
+        "seeds": [2026],
+        "rounds": 3,
+        "subset_train": 2048,
+        "subset_test": 512,
+        "purpose": "development validation on real datasets with small subsets",
+    },
+    "paper_autodl": {
+        "configs": PAPER_AUTODL_CONFIGS,
+        "seeds": None,
+        "rounds": None,
+        "subset_train": None,
+        "subset_test": None,
+        "purpose": "ordinary paper-level final evaluation on real datasets",
+    },
+    "final_autodl": {
+        "configs": PAPER_AUTODL_CONFIGS,
+        "seeds": None,
+        "rounds": None,
+        "subset_train": None,
+        "subset_test": None,
+        "purpose": "backward-compatible alias for paper_autodl",
+    },
+}
+
+RESOURCE_PRESETS = {
+    "dev_autodl": {
+        "recommended": "CPU 8 cores / 32GB RAM, or any low-cost GPU instance",
+        "gpu": "optional",
+        "notes": "TenSEAL calibration is CPU-bound; small PyTorch workloads do not require a high-end GPU.",
+    },
+    "paper_autodl": {
+        "recommended": "RTX 3090/4090 24GB or A10 24GB; CPU 16 cores; RAM 64GB",
+        "gpu": "recommended but not mandatory",
+        "notes": "GPU speeds up PyTorch training; HE calibration remains CPU-bound.",
+    },
+    "final_autodl": {
+        "recommended": "RTX 3090/4090 24GB or A10 24GB; CPU 16 cores; RAM 64GB",
+        "gpu": "recommended but not mandatory",
+        "notes": "Alias for paper_autodl.",
+    },
+}
+
 
 def _suite_output_dir(out: str | Path | None, suite: str) -> Path:
     if out:
         return ensure_dir(out).resolve()
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    return ensure_dir(ROOT / "results" / f"final_{stamp}_{suite}").resolve()
+    return ensure_dir(ROOT / "results" / f"suite_{stamp}_{suite}").resolve()
 
 
 def _resolved_config(
@@ -41,6 +93,7 @@ def _resolved_config(
     data_root: str,
     calibration_path: Path,
     allow_analytic: bool,
+    suite_spec: Dict[str, Any],
 ) -> Dict[str, Any]:
     cfg = copy.deepcopy(base)
     cfg["seed"] = int(seed)
@@ -49,6 +102,13 @@ def _resolved_config(
     cfg.setdefault("dataset", {})
     cfg["dataset"]["root"] = data_root
     cfg["dataset"]["allow_fake_fallback"] = False
+    if suite_spec.get("subset_train") is not None:
+        cfg["dataset"]["subset_train"] = suite_spec["subset_train"]
+    if suite_spec.get("subset_test") is not None:
+        cfg["dataset"]["subset_test"] = suite_spec["subset_test"]
+    if suite_spec.get("rounds") is not None:
+        cfg.setdefault("fed", {})
+        cfg["fed"]["rounds"] = suite_spec["rounds"]
     cfg.setdefault("he_backend", {})
     if calibration_path.exists():
         cfg["he_backend"]["mode"] = "calibrated_simhe"
@@ -71,8 +131,9 @@ def run_suite(
     calibration_path: str | Path | None,
     allow_analytic: bool,
 ) -> Path:
-    if suite != "final_autodl":
+    if suite not in SUITES:
         raise ValueError(f"Unknown suite: {suite}")
+    suite_spec = SUITES[suite]
     suite_dir = _suite_output_dir(out, suite)
     config_dir = ensure_dir(suite_dir / "resolved_configs")
     ensure_dir(suite_dir / "runs")
@@ -84,10 +145,13 @@ def run_suite(
         calibration = suite_dir / "he_calibration.json"
 
     runs: List[Dict[str, Any]] = []
-    for workload in FINAL_AUTODL_CONFIGS:
+    for workload in suite_spec["configs"]:
         base_path = ROOT / "configs" / f"{workload}.json"
         base = load_config(base_path)
-        seeds = [int(s) for s in base.get("experiment", {}).get("seeds", [base.get("seed", 2026)])]
+        if suite_spec.get("seeds") is not None:
+            seeds = [int(s) for s in suite_spec["seeds"]]
+        else:
+            seeds = [int(s) for s in base.get("experiment", {}).get("seeds", [base.get("seed", 2026)])]
         for seed in seeds:
             cfg = _resolved_config(
                 base=base,
@@ -97,6 +161,7 @@ def run_suite(
                 data_root=data_root,
                 calibration_path=calibration,
                 allow_analytic=allow_analytic,
+                suite_spec=suite_spec,
             )
             resolved_path = config_dir / f"{workload}_seed{seed}.json"
             write_json(resolved_path, cfg)
@@ -115,10 +180,12 @@ def run_suite(
         "kind": "suite",
         "suite": suite,
         "suite_dir": str(suite_dir),
+        "purpose": suite_spec["purpose"],
+        "resource_preset": RESOURCE_PRESETS[suite],
         "data_root": data_root,
         "calibration_path": str(calibration),
         "runs": runs,
-        "workloads": FINAL_AUTODL_CONFIGS,
+        "workloads": suite_spec["configs"],
     }
     write_json(suite_dir / "manifest.json", manifest)
     aggregate_suite(suite_dir)
@@ -127,12 +194,12 @@ def run_suite(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the final HE-FL experiment suite.")
-    parser.add_argument("--suite", default="final_autodl", choices=["final_autodl"])
-    parser.add_argument("--out", default=None, help="Suite output directory. Defaults to results/final_<timestamp>.")
+    parser = argparse.ArgumentParser(description="Run a HE-FL experiment suite.")
+    parser.add_argument("--suite", default="paper_autodl", choices=sorted(SUITES))
+    parser.add_argument("--out", default=None, help="Suite output directory. Defaults to results/suite_<timestamp>.")
     parser.add_argument("--data-root", default="/root/autodl-tmp/data")
     parser.add_argument("--calibration-path", default=None)
-    parser.add_argument("--allow-analytic", action="store_true", help="Development only: run without TenSEAL calibration.")
+    parser.add_argument("--allow-analytic", action="store_true", help="Run without TenSEAL calibration.")
     args = parser.parse_args()
     run_suite(
         suite=args.suite,
